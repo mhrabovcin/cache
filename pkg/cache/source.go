@@ -99,6 +99,7 @@ func (s *source) refresh() {
 	defer s.lock.Unlock()
 	s.data = data
 	s.lastRefresh = refreshTime
+	s.nextRefresh = refreshTime.Add(s.refreshFrequency)
 }
 
 func (s *source) Stop() {

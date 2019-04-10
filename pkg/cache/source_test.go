@@ -113,6 +113,10 @@ func TestRefresh(t *testing.T) {
 		t.Fatal("refresh time should be recoded")
 	}
 
+	if !item.NextRefresh().Equal(item.LastRefreshed().Add(15 * time.Millisecond)) {
+		t.Fatal("next refresh isn't updated")
+	}
+
 	if !refreshRan {
 		t.Fatal("refresh function should have been triggered")
 	}
