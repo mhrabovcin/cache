@@ -24,8 +24,8 @@ type Cache interface {
 	Get(source string, key string) (value Item, err error)
 }
 
-// NewCache creates a new global cache instance with provided sources
-func NewCache(sources map[string]Source) Cache {
+// New creates a new global cache instance with provided sources
+func New(sources map[string]Source) Cache {
 	return &cacheImpl{
 		sources: sources,
 	}
