@@ -5,14 +5,20 @@ import "time"
 var (
 	// NeverRefresh is used when a source shouldn't be refreshed
 	NeverRefresh time.Time = time.Time{}
+
+	Never time.Time = time.Time{}
 )
 
 // Metadata represents an information about cache state
 type Metadata interface {
 	LastRefreshed() time.Time
+
 	// Use NextRefresh().IsZero() to check if the item will be refreshed at
 	// some point in the future.
 	NextRefresh() time.Time
+
+	// IsStale method returns `true` if the record returend by the cache
+	// should have been refreshed but wasn't in proper time.
 	IsStale() bool
 }
 
@@ -30,11 +36,13 @@ func (m MetadataImpl) NextRefresh() time.Time {
 }
 
 func (m MetadataImpl) IsStale() bool {
-	if m.nextRefresh.IsZero() {
+	if m.nextRefresh.Equal(NeverRefresh) {
 		return false
 	}
 
-	if m.nextRefresh.After(time.Now()) {
+	// If the current time is after the time when the item should be refreshed
+	// report a stale item.
+	if time.Now().After(m.nextRefresh) {
 		return true
 	}
 
