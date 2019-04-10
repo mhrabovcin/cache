@@ -12,11 +12,6 @@ var (
 	ErrKeyNotFound = errors.New("Key was not found")
 )
 
-// Source represents a single source of cached data from a distinct data source.
-type Source interface {
-	Get(key string) (value Item, err error)
-}
-
 // Cache represents a global cache object that can be used to access a source
 // or cached kedy form a source directly
 type Cache interface {

@@ -1,13 +1,28 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
 
-// RefreshFunc is a function that should be used by dynamic source to refresh
+// Source represents a single source of cached data from a distinct data source.
+type Source interface {
+	Get(key string) (value Item, err error)
+}
+
+// StoppableSource is a cache source that automatically fetches data based on
+// configured schedule and can be stopped.
+type StoppableSource interface {
+	Source
+
+	// Stop is used to clean up gorotines that try to fetch new data
+	Stop()
+}
+
+// FetchFunc is a function that should be used by dynamic source to refresh
 // data.
-type RefreshFunc func() (map[string]string, error)
+type FetchFunc func() (map[string]string, error)
 
 // Option is a function that sets an option for a source
 type Option func(*Options)
@@ -17,8 +32,9 @@ type Option func(*Options)
 type Options struct {
 	DefaultData      map[string]string
 	LastRefreshed    time.Time
-	RefreshFunc      RefreshFunc
+	FetchFunc        FetchFunc
 	RefreshFrequency time.Duration
+	RetryWait        time.Duration
 }
 
 type source struct {
@@ -27,8 +43,66 @@ type source struct {
 	data map[string]string
 	lock sync.RWMutex
 
-	refreshFunc      RefreshFunc
+	fetchFunc        FetchFunc
 	refreshFrequency time.Duration
+	retryWait        time.Duration
+	stopCh           chan struct{}
+}
+
+func (s *source) start() {
+	if s.fetchFunc == nil {
+		// Log no refresh
+		return
+	}
+
+	// Default data hasn't been provided, use initial refresh
+	if len(s.data) == 0 {
+		fmt.Println("No data provided, initial fetch")
+		s.refresh()
+	}
+
+	select {
+	case <-s.stopCh:
+		return
+	case <-time.After(s.refreshFrequency):
+		fmt.Println("Refreshing data")
+		s.refresh()
+	}
+}
+
+func (s *source) refresh() {
+	var data map[string]string
+	var err error
+	var refreshTime time.Time
+
+	// Super simple retry that should be converted to a configurable
+	// retry with backoff?
+	for i := 0; i < 3; i++ {
+		data, err = s.fetchFunc()
+		refreshTime = time.Now()
+		if err != nil {
+			// Log error
+			// s.logger.Error()
+			fmt.Println("Failed to fetch data source. Error:", err)
+
+			// We've reached end of retry
+			if i == 2 {
+				return
+			}
+
+			<-time.After(s.retryWait)
+			continue
+		}
+	}
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.data = data
+	s.lastRefresh = refreshTime
+}
+
+func (s *source) Stop() {
+	close(s.stopCh)
 }
 
 func (s *source) Get(key string) (value Item, err error) {
@@ -59,24 +133,28 @@ func (s *source) NextRefresh() time.Time {
 }
 
 // NewSource creates a cache source
-func NewSource(opts ...Option) *source {
+func NewSource(opts ...Option) StoppableSource {
 	o := &Options{
 		DefaultData:   map[string]string{},
 		LastRefreshed: Never,
+		RetryWait:     1 * time.Second,
 	}
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	return &source{
+	s := &source{
 		MetadataImpl: MetadataImpl{
 			lastRefresh: o.LastRefreshed,
 		},
 		data:             o.DefaultData,
-		refreshFunc:      o.RefreshFunc,
+		fetchFunc:        o.FetchFunc,
 		refreshFrequency: o.RefreshFrequency,
+		stopCh:           make(chan struct{}),
 	}
+	go s.start()
+	return s
 }
 
 // WithDefaultData provides a default cached data for a source
@@ -97,12 +175,20 @@ func WithLastRefreshTime(t time.Time) Option {
 // WithLogger provides a custom logger interface
 // func WithLogger()
 
-// WithRefreshFunc sets a refresh function and frequency in which should be
+// WithFetchFunc sets a refresh function and frequency in which should be
 // function invoked.
-func WithRefreshFunc(f RefreshFunc, freq time.Duration) Option {
+func WithFetchFunc(f FetchFunc, freq time.Duration) Option {
 	return func(o *Options) {
-		o.RefreshFunc = f
+		o.FetchFunc = f
 		o.RefreshFrequency = freq
+	}
+}
+
+// WithRetryWait overrides default 1 second retry wait period when fetch
+// function returns an error
+func WithRetryWait(d time.Duration) Option {
+	return func(o *Options) {
+		o.RetryWait = d
 	}
 }
 

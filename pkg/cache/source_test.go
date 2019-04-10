@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -80,7 +81,9 @@ func BenchmarkStaticSourceGetParallel(b *testing.B) {
 }
 
 func TestRefresh(t *testing.T) {
-	refreshFunc := func() (map[string]string, error) {
+	refreshRan := false
+	fetchFunc := func() (map[string]string, error) {
+		refreshRan = true
 		m := map[string]string{
 			"key": "refreshed",
 		}
@@ -91,7 +94,7 @@ func TestRefresh(t *testing.T) {
 		cache.WithDefaultData(map[string]string{
 			"key": "default",
 		}),
-		cache.WithRefreshFunc(refreshFunc, 10*time.Millisecond),
+		cache.WithFetchFunc(fetchFunc, 15*time.Millisecond),
 	)
 
 	item, _ := s.Get("key")
@@ -104,5 +107,35 @@ func TestRefresh(t *testing.T) {
 	item, _ = s.Get("key")
 	if item.Value() != "refreshed" {
 		t.Fatal("cached value should be refreshed")
+	}
+
+	if item.LastRefreshed().Equal(cache.Never) {
+		t.Fatal("refresh time should be recoded")
+	}
+
+	if !refreshRan {
+		t.Fatal("refresh function should have been triggered")
+	}
+
+	s.Stop()
+}
+
+func TestRefreshError(t *testing.T) {
+	refreshCount := 0
+	fetchFunc := func() (map[string]string, error) {
+		refreshCount += 1
+		return nil, fmt.Errorf("error")
+	}
+
+	s := cache.NewSource(
+		cache.WithFetchFunc(fetchFunc, 10*time.Millisecond),
+		cache.WithRetryWait(10*time.Millisecond),
+	)
+	defer s.Stop()
+
+	<-time.After(5 * time.Millisecond)
+
+	if refreshCount != 3 {
+		t.Fatal("refresh should be retried at least 3 time. Actual retries: ", refreshCount)
 	}
 }
