@@ -53,9 +53,17 @@ type source struct {
 	refreshFrequency time.Duration
 	retryWait        time.Duration
 	stopCh           chan struct{}
+	stoppedCh        chan struct{}
 }
 
 func (s *source) start() {
+	defer close(s.stoppedCh)
+
+	// Start automated data refresh only if fetch function is provided
+	if s.fetchFunc == nil {
+		return
+	}
+
 	// Default data hasn't been provided, use initial refresh
 	if len(s.data) == 0 {
 		fmt.Println("No data provided, initial fetch")
@@ -105,6 +113,7 @@ func (s *source) refresh() {
 
 func (s *source) Stop() {
 	close(s.stopCh)
+	<-s.stoppedCh
 }
 
 func (s *source) Name() string {
@@ -159,13 +168,10 @@ func NewSource(name string, opts ...Option) StoppableSource {
 		fetchFunc:        o.FetchFunc,
 		refreshFrequency: o.RefreshFrequency,
 		stopCh:           make(chan struct{}),
+		stoppedCh:        make(chan struct{}),
 	}
 
-	// Start automated data refresh only if fetch function is provided
-	if o.FetchFunc != nil {
-		go s.start()
-	}
-
+	go s.start()
 	return s
 }
 
