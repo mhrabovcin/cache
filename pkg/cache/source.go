@@ -38,7 +38,7 @@ type Options struct {
 }
 
 type source struct {
-	MetadataImpl
+	metadata
 
 	data map[string]string
 	lock sync.RWMutex
@@ -146,7 +146,7 @@ func NewSource(opts ...Option) StoppableSource {
 	}
 
 	s := &source{
-		MetadataImpl: MetadataImpl{
+		metadata: metadata{
 			lastRefresh: o.LastRefreshed,
 		},
 		data:             o.DefaultData,

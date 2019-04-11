@@ -21,20 +21,20 @@ type Metadata interface {
 	IsStale() bool
 }
 
-type MetadataImpl struct {
+type metadata struct {
 	lastRefresh time.Time
 	nextRefresh time.Time
 }
 
-func (m MetadataImpl) LastRefreshed() time.Time {
+func (m metadata) LastRefreshed() time.Time {
 	return m.lastRefresh
 }
 
-func (m MetadataImpl) NextRefresh() time.Time {
+func (m metadata) NextRefresh() time.Time {
 	return m.nextRefresh
 }
 
-func (m MetadataImpl) IsStale() bool {
+func (m metadata) IsStale() bool {
 	if m.nextRefresh.Equal(Never) {
 		return false
 	}
@@ -48,8 +48,8 @@ func (m MetadataImpl) IsStale() bool {
 	return false
 }
 
-func NewMetadata(lastRefresh time.Time, nextRefresh time.Time) MetadataImpl {
-	return MetadataImpl{
+func NewMetadata(lastRefresh time.Time, nextRefresh time.Time) metadata {
+	return metadata{
 		lastRefresh: lastRefresh,
 		nextRefresh: nextRefresh,
 	}
@@ -64,7 +64,7 @@ type Item interface {
 }
 
 type item struct {
-	MetadataImpl
+	metadata
 	value string
 }
 
@@ -78,7 +78,7 @@ func NewItem(
 	nextRefresh time.Time,
 ) Item {
 	return &item{
-		value:        value,
-		MetadataImpl: NewMetadata(lastRefreshed, nextRefresh),
+		value:    value,
+		metadata: NewMetadata(lastRefreshed, nextRefresh),
 	}
 }
