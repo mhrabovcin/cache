@@ -3,9 +3,8 @@ package cache
 import "time"
 
 var (
-	// NeverRefresh is used when a source shouldn't be refreshed
-	NeverRefresh time.Time = time.Time{}
-
+	// Never represents a zero time that can be used for LastRefreshed
+	// and NextRefresh values.
 	Never time.Time = time.Time{}
 )
 
@@ -36,7 +35,7 @@ func (m MetadataImpl) NextRefresh() time.Time {
 }
 
 func (m MetadataImpl) IsStale() bool {
-	if m.nextRefresh.Equal(NeverRefresh) {
+	if m.nextRefresh.Equal(Never) {
 		return false
 	}
 

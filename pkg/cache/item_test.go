@@ -43,14 +43,14 @@ func TestMetadataIsStale(t *testing.T) {
 }
 
 func TestMetadataIsStaleNeverRefresh(t *testing.T) {
-	m := cache.NewMetadata(time.Now(), cache.NeverRefresh)
+	m := cache.NewMetadata(time.Now(), cache.Never)
 	if m.IsStale() {
 		t.Fatal("Never refreshed record shouldn't be stale")
 	}
 }
 
 func TestItem(t *testing.T) {
-	item := cache.NewItem("value", time.Now(), cache.NeverRefresh)
+	item := cache.NewItem("value", time.Now(), cache.Never)
 	if item.Value() != "value" {
 		t.Fatal("Value of the cached item is incorrect")
 	}
