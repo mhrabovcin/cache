@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -66,16 +66,18 @@ func (s *source) start() {
 
 	// Default data hasn't been provided, use initial refresh
 	if len(s.data) == 0 {
-		fmt.Println("No data provided, initial fetch")
+		log.Println("No data provided, initial fetch")
 		s.refresh()
 	}
 
-	select {
-	case <-s.stopCh:
-		return
-	case <-time.After(s.refreshFrequency):
-		fmt.Println("Refreshing data")
-		s.refresh()
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-time.After(s.refreshFrequency):
+			log.Println("Refreshing data for source", s.name)
+			s.refresh()
+		}
 	}
 }
 
@@ -92,7 +94,7 @@ func (s *source) refresh() {
 		if err != nil {
 			// Log error
 			// s.logger.Error()
-			fmt.Println("Failed to fetch data source. Error:", err)
+			log.Println("Failed to fetch data source. Error:", err)
 
 			// We've reached end of retry
 			if i == 2 {
