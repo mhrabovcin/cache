@@ -48,6 +48,7 @@ func (m metadata) IsStale() bool {
 	return false
 }
 
+// NewMetadata creates metadata instance
 func NewMetadata(lastRefresh time.Time, nextRefresh time.Time) metadata {
 	return metadata{
 		lastRefresh: lastRefresh,
@@ -72,6 +73,7 @@ func (i *item) Value() string {
 	return i.value
 }
 
+// NewItem creates a cache item with value and metadata
 func NewItem(
 	value string,
 	lastRefreshed time.Time,
