@@ -8,6 +8,10 @@ import (
 
 // Source represents a single source of cached data from a distinct data source.
 type Source interface {
+	// Name of the source
+	Name() string
+
+	// Get either returns an item form the cache or an error
 	Get(key string) (value Item, err error)
 }
 
@@ -40,6 +44,8 @@ type Options struct {
 type source struct {
 	metadata
 
+	name string
+
 	data map[string]string
 	lock sync.RWMutex
 
@@ -50,11 +56,6 @@ type source struct {
 }
 
 func (s *source) start() {
-	if s.fetchFunc == nil {
-		// Log no refresh
-		return
-	}
-
 	// Default data hasn't been provided, use initial refresh
 	if len(s.data) == 0 {
 		fmt.Println("No data provided, initial fetch")
@@ -106,6 +107,10 @@ func (s *source) Stop() {
 	close(s.stopCh)
 }
 
+func (s *source) Name() string {
+	return s.name
+}
+
 func (s *source) Get(key string) (value Item, err error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -134,7 +139,7 @@ func (s *source) NextRefresh() time.Time {
 }
 
 // NewSource creates a cache source
-func NewSource(opts ...Option) StoppableSource {
+func NewSource(name string, opts ...Option) StoppableSource {
 	o := &Options{
 		DefaultData:   map[string]string{},
 		LastRefreshed: Never,
@@ -149,12 +154,18 @@ func NewSource(opts ...Option) StoppableSource {
 		metadata: metadata{
 			lastRefresh: o.LastRefreshed,
 		},
+		name:             name,
 		data:             o.DefaultData,
 		fetchFunc:        o.FetchFunc,
 		refreshFrequency: o.RefreshFrequency,
 		stopCh:           make(chan struct{}),
 	}
-	go s.start()
+
+	// Start automated data refresh only if fetch function is provided
+	if o.FetchFunc != nil {
+		go s.start()
+	}
+
 	return s
 }
 
@@ -195,8 +206,13 @@ func WithRetryWait(d time.Duration) Option {
 
 // NewStaticSource returns a cache source that never refresheshes and always
 // serves static data
-func NewStaticSource(data map[string]string, lastRefresh time.Time) Source {
+func NewStaticSource(
+	name string,
+	data map[string]string,
+	lastRefresh time.Time,
+) Source {
 	return NewSource(
+		name,
 		WithDefaultData(data),
 		WithLastRefreshTime(lastRefresh),
 	)

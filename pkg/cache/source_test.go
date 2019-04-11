@@ -11,12 +11,17 @@ import (
 func TestStaticSource(t *testing.T) {
 	lastRefresh := time.Now().Add(-1 * time.Minute)
 	s := cache.NewStaticSource(
+		"test",
 		map[string]string{
 			"key":  "value",
 			"key2": "value2",
 		},
 		lastRefresh,
 	)
+
+	if s.Name() != "test" {
+		t.Fatal("source returns wrong name")
+	}
 
 	item, err := s.Get("non-existing")
 	if item != nil {
@@ -48,6 +53,7 @@ func TestStaticSource(t *testing.T) {
 func BenchmarkStaticSourceGet(b *testing.B) {
 	lastRefresh := time.Now().Add(-1 * time.Minute)
 	s := cache.NewStaticSource(
+		"test",
 		map[string]string{
 			"key":  "value",
 			"key2": "value2",
@@ -64,6 +70,7 @@ func BenchmarkStaticSourceGet(b *testing.B) {
 func BenchmarkStaticSourceGetParallel(b *testing.B) {
 	lastRefresh := time.Now().Add(-1 * time.Minute)
 	s := cache.NewStaticSource(
+		"test",
 		map[string]string{
 			"key":  "value",
 			"key2": "value2",
@@ -91,6 +98,7 @@ func TestRefresh(t *testing.T) {
 	}
 
 	s := cache.NewSource(
+		"test",
 		cache.WithDefaultData(map[string]string{
 			"key": "default",
 		}),
@@ -132,6 +140,7 @@ func TestRefreshError(t *testing.T) {
 	}
 
 	s := cache.NewSource(
+		"test",
 		cache.WithFetchFunc(fetchFunc, 10*time.Millisecond),
 		cache.WithRetryWait(10*time.Millisecond),
 	)
